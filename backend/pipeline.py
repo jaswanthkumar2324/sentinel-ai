@@ -2,8 +2,12 @@ import os
 import json
 import datetime
 from dotenv import load_dotenv
-from tools.search_tool import web_search
-from llm import call_llm
+try:
+    from backend.tools.search_tool import web_search
+    from backend.llm import call_llm
+except ImportError:
+    from tools.search_tool import web_search
+    from llm import call_llm
 
 # Load local .env file if it exists (for local testing)
 load_dotenv()
