@@ -1,0 +1,74 @@
+name: Daily AI Agent Verification Run
+
+on:
+  schedule:
+    # 9:00 PM IST is 15:30 UTC
+    - cron: '30 15 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetch all history for committing changes
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Execute Multi-Agent Verification Pipeline
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      run: |
+        python run_daily.py
+
+    - name: Commit and Push Daily News Data
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add frontend/public/data/
+        
+        # Check if there are any changes to commit before pushing
+        if git diff --staged --quiet; then
+          echo "No new news reports generated today."
+        else
+          git commit -m "data: auto-generate daily news report [skip ci]"
+          git push origin main
+        fi
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Frontend Dependencies
+      run: |
+        cd frontend
+        npm install
+
+    - name: Build Frontend Application
+      run: |
+        cd frontend
+        npm run build
+
+    - name: Deploy Frontend to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./frontend/dist
+        publish_branch: gh-pages
+        force_orphan: true
